@@ -1,0 +1,10 @@
+nextflow run main.nf \
+    --depmap_samples /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/depmap_samples.csv \
+    --depmap_effect /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/depmap_effect.csv \
+    --gmt /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/msigdb.v7.4.symbols.gmt \
+    --treatment_fastq /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/treatment/T-Pikachu_20201202_49.fastq.gz,/Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/treatment/T-Pikachu_20201202_50.fastq.gz \
+    --control_fastq /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/control/C-Pikachu_20201202_1.fastq.gz,/Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/control/C-Pikachu_20201202_2.fastq.gz \
+    --library /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/GuideLibrary_HIVCATRIM.csv \
+    --output /Users/zager/Documents/Projects/NF/crispr-screen-nf/test2/output \
+    --organism hsa \
+    -profile testing
