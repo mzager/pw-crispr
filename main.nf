@@ -34,6 +34,10 @@ include {
     rmd_pdf as Process_Rmd_Pdf_Control;
 } from './module.rmd'
 
+include {
+    populate_ntc as Process_Populate_NTC
+} from './module.general'
+
 // Validate Input Parameters / Print Help
 def validate(params) {
 
@@ -116,14 +120,17 @@ workflow {
     // Process : Mageck Merge
     // Concat All Count Data
     Process_Mageck_Merge(Process_Mageck_Count_Treatment.out.counts.toSortedList(), Process_Mageck_Count_Control.out.counts.toSortedList(), 'mageck/count/combined')
+
+    // Add back counts for duplicated guides (if any)
+    Process_Populate_NTC(Process_Mageck_Merge.out.merged.combine(Channel_Library))
     
     // Process : Mageck Rra
     // MAGeCK RRA (identifying CRISPR screen hits by calculating the RRA enrichment score to indicate the essentiality of a gene)
-    Process_Mageck_Rra(Process_Mageck_Merge.out.merged, 'rra', 'mageck/rra')
+    Process_Mageck_Rra(Process_Populate_NTC.out, 'rra', 'mageck/rra')
 
     // Process : Mageck MLE
     // MAGeCK MLE (identifying CRISPR screen hits by calculating a ‘beta score’ for each targeted gene to measure the degree of selection after the target is perturbed)
-    Process_Mageck_Mle(Process_Mageck_Merge.out.merged, params.treatment_fastq, params.control_fastq, 'mle', 'mageck/mle')
+    Process_Mageck_Mle(Process_Populate_NTC.out, params.treatment_fastq, params.control_fastq, 'mle', 'mageck/mle')
 
     // Process : Mageck Pathway
     Process_Mageck_Pathway(Process_Mageck_Rra.out.geneSummary.combine(Channel.fromPath(params.gmt)), 'gene', 'mageck/rra/pathway')
