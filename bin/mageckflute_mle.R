@@ -116,8 +116,6 @@ FluteMLE <- function(gene_summary, treatname, ctrlname = "Depmap",
     idx1 = is.na(beta$EntrezID)
     idx2 = !is.na(beta$EntrezID) & duplicated(beta$EntrezID)
     idx = idx1|idx2
-    if(sum(idx1)>0) message(sum(idx1), " genes fail to convert into Entrez IDs: ",
-                           paste0(beta$Gene[idx1], collapse = ", "))
     if(sum(idx2)>0) message(sum(idx2), " genes have duplicate Entrez IDs: ",
                             paste0(beta$Gene[idx2], collapse = ", "))
 
