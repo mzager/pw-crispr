@@ -1,9 +1,7 @@
-mageckflute_container = "quay.io/biocontainers/bioconductor-mageckflute:1.12.0--r41hdfd78af_0"
-
 // Process MAGeCKFlute RRA
 process mageckflute_rra {
 
-    container "${mageckflute_container}"
+    container "${params.container__mageckflute}"
     label "mem_medium"
     
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*"
@@ -19,23 +17,13 @@ process mageckflute_rra {
         path "*"
         
     script:
-        """/bin/bash
-        set -Eeuo pipefail
-
-        mageckflute_rra.R \
-            "${gene_summary}" \
-            "${sgrna_summary}" \
-            "${organism}" \
-            "${scale_cutoff}"
-
-        ls -lahtr
-        """
+    template "mageckflute_rra.sh"
 }
 
 // Process : MAGeCKFlute Mle
 process mageckflute_mle {
 
-    container "${mageckflute_container}"
+    container "${params.container__mageckflute}"
     label "mem_medium"
 
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*"
@@ -51,17 +39,5 @@ process mageckflute_mle {
         path "*"
 
     script:
-        """/bin/bash
-        set -Eeuo pipefail
-
-        mageckflute_mle.R \
-            "${gene_summary}" \
-            "${params.organism}" \
-            "treatment_control" \
-            "depmap" \
-            "${depmap_effect}" \
-            "${depmap_samples}"
-            
-        ls -lahtr
-        """
+    template "mageckflute_mle.sh"
 }

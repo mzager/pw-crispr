@@ -9,33 +9,48 @@ params.scale_cutoff = 1
 params.trim_3_prime = -8
 params.trim_5_prime = 32
 
+// List of extensions to be remove to determine sample name
+params.suffix_list = "trimmed gz fq fastq fna fasta"
+
+// Containers
+params.container__pandas = "quay.io/fhcrc-microbiome/python-pandas:v1.2.1_latest"
+params.container__fastqc = "quay.io/biocontainers/fastqc:0.11.9--hdfd78af_1"
+params.container__multiqc = "quay.io/biocontainers/multiqc:1.11--pyhdfd78af_0"
+params.container__cutadapt = "quay.io/biocontainers/cutadapt:3.4--py37h73a75cf_1"
+params.container__mageck = "quay.io/biocontainers/mageck:0.5.9.4--py38h8c62d01_1"
+params.container__mageckflute = "quay.io/biocontainers/bioconductor-mageckflute:1.12.0--r41hdfd78af_0"
+params.container__rmd = "rocker/r-rmd:latest"
+
 // Import the modules
 include {
-    cutadapt_trim as Process_Cutadapt_Trim_Treatment;
-    cutadapt_trim as Process_Cutadapt_Trim_Control;
+    cutadapt_trim as cutadapt_trim_treatment;
+    cutadapt_trim as cutadapt_trim_control;
 } from './module.cutadapt'
 
 include {
-    mageck_count as Process_Mageck_Count_Treatment;
-    mageck_count as Process_Mageck_Count_Control;
-    mageck_rra as Process_Mageck_Rra;
-    mageck_mle as Process_Mageck_Mle;
-    mageck_pathway as Process_Mageck_Pathway;
-    mageck_merge as Process_Mageck_Merge;
+    mageck_count as mageck_count_treatment;
+    mageck_count as mageck_count_control;
+    mageck_rra;
+    mageck_mle;
+    mageck_pathway;
+    mageck_merge;
 } from './module.mageck'
 
 include {
-    mageckflute_rra as Process_MageckFlute_Rra;
-    mageckflute_mle as Process_MageckFlute_Mle
+    mageckflute_rra;
+    mageckflute_mle
 } from './module.mageckflute'
 
 include {
-    rmd_pdf as Process_Rmd_Pdf_Treatment;
-    rmd_pdf as Process_Rmd_Pdf_Control;
+    rmd_pdf as Rmd_Pdf_Treatment;
+    rmd_pdf as Rmd_Pdf_Control;
 } from './module.rmd'
 
 include {
-    populate_ntc as Process_Populate_NTC
+    populate_ntc;
+    fastqc;
+    parse_fastqc;
+    multiqc;
 } from './module.general'
 
 // Validate Input Parameters / Print Help
@@ -107,42 +122,53 @@ workflow {
     // Chanel : SGRNA Library
     Channel.fromPath(params.library).set{Channel_Library}
 
+    // Process : FastQC
+    // Compute quality control metrics for all input FASTQ data
+    fastqc(Channel_Fastq_Control.mix(Channel_Fastq_Treatment))
+
+    // Process : Parse FastQC Output
+    parse_fastqc(fastqc.out.data)
+
+    // Process : MultiQC
+    // Combine quality control reporting across all inputs
+    multiqc(fastqc.out.zip.toSortedList())
+
     // Process : Cutadapt Trim
     // Remove Extra Adaptor Sequences From Reads
-    Process_Cutadapt_Trim_Treatment(Channel_Fastq_Treatment, params.trim_5_prime, params.trim_3_prime, 'cutadapt/trim/treatment')
-    Process_Cutadapt_Trim_Control(Channel_Fastq_Control, params.trim_5_prime, params.trim_3_prime, 'cutadapt/trim/control')
+    cutadapt_trim_treatment(Channel_Fastq_Treatment, 'cutadapt/trim/treatment')
+    cutadapt_trim_control(Channel_Fastq_Control, 'cutadapt/trim/control')
 
     // Process : Mageck Count
     // Map the raw FASTQ data to reference library file and count the reads for each sgRNA
-    Process_Mageck_Count_Treatment(Process_Cutadapt_Trim_Treatment.out.combine(Channel_Library), 'mageck/count/treatment')
-    Process_Mageck_Count_Control(Process_Cutadapt_Trim_Control.out.combine(Channel_Library), 'mageck/count/control')
+    mageck_count_treatment(cutadapt_trim_treatment.out.combine(Channel_Library), 'mageck/count/treatment')
+    mageck_count_control(cutadapt_trim_control.out.combine(Channel_Library), 'mageck/count/control')
 
     // Process : Mageck Merge
     // Concat All Count Data
-    Process_Mageck_Merge(Process_Mageck_Count_Treatment.out.counts.toSortedList(), Process_Mageck_Count_Control.out.counts.toSortedList(), 'mageck/count/combined')
+    mageck_merge(mageck_count_treatment.out.counts.toSortedList(), mageck_count_control.out.counts.toSortedList(), 'mageck/count/combined')
 
     // Add back counts for duplicated guides (if any)
-    Process_Populate_NTC(Process_Mageck_Merge.out.merged.combine(Channel_Library))
+    populate_ntc(mageck_merge.out.merged.combine(Channel_Library))
     
     // Process : Mageck Rra
     // MAGeCK RRA (identifying CRISPR screen hits by calculating the RRA enrichment score to indicate the essentiality of a gene)
-    Process_Mageck_Rra(Process_Populate_NTC.out, 'rra', 'mageck/rra')
+    mageck_rra(populate_ntc.out, 'rra', 'mageck/rra')
 
     // Process : Mageck MLE
     // MAGeCK MLE (identifying CRISPR screen hits by calculating a ‘beta score’ for each targeted gene to measure the degree of selection after the target is perturbed)
-    Process_Mageck_Mle(Process_Populate_NTC.out, params.treatment_fastq, params.control_fastq, 'mle', 'mageck/mle')
+    mageck_mle(populate_ntc.out, params.treatment_fastq, params.control_fastq, 'mle', 'mageck/mle')
 
     // Process : Mageck Pathway
-    Process_Mageck_Pathway(Process_Mageck_Rra.out.geneSummary.combine(Channel.fromPath(params.gmt)), 'gene', 'mageck/rra/pathway')
+    mageck_pathway(mageck_rra.out.geneSummary.combine(Channel.fromPath(params.gmt)), 'gene', 'mageck/rra/pathway')
     
     // Run Mageck Flute RRA
-    Process_MageckFlute_Rra(Process_Mageck_Rra.out.geneSummary, Process_Mageck_Rra.out.sgrnaSummary, params.scale_cutoff, params.organism, 'mageckflute/rra')
+    mageckflute_rra(mageck_rra.out.geneSummary, mageck_rra.out.sgrnaSummary, params.scale_cutoff, params.organism, 'mageckflute/rra')
 
     // Process Mageck Flute MLE
-    Process_MageckFlute_Mle(Process_Mageck_Mle.out.geneSummary, Channel.fromPath(params.depmap_effect), Channel.fromPath(params.depmap_samples), 'mageckflute/mle')
+    mageckflute_mle(mageck_mle.out.geneSummary, Channel.fromPath(params.depmap_effect), Channel.fromPath(params.depmap_samples), 'mageckflute/mle')
     
     // Process : Rmd To Pdf
-    // Process_Rmd_Pdf_Treatment(Process_Mageck_Count_Treatment.out.r, 'mageck/count/treatment/pdf')
-    // Process_Rmd_Pdf_Control(Process_Mageck_Count_Control.out.r, 'mageck/count/control/pdf')
+    // Rmd_Pdf_Treatment(mageck_count_treatment.out.r, 'mageck/count/treatment/pdf')
+    // Rmd_Pdf_Control(mageck_count_control.out.r, 'mageck/count/control/pdf')
    
 }

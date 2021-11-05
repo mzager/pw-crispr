@@ -1,9 +1,7 @@
-rmd_container = "rocker/r-rmd:latest"
-
 // Process : Build PDFs Using RMD Files
 process rmd_pdf { 
 
-    container "${rmd_container}"
+    container "${params.container__rmd}"
     label "mem_medium"
 
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*.pdf"
@@ -16,15 +14,5 @@ process rmd_pdf {
         path "*"
 
     script:
-        """/bin/bash
-            set -Eeuo pipefail
-
-            for rmd in *.R; do
-                if [[ -s "\${rmd}" ]]; then
-                    R < "\${rmd}\" --no-save
-                fi
-            done
-
-            ls -lahtr
-        """
+    template "rmd_pdf.sh"
 }

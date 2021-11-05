@@ -1,10 +1,7 @@
-mageck_container = "quay.io/biocontainers/mageck:0.5.9.4--py38h8c62d01_1"
-suffix_list = "trimmed gz fq fastq fna fasta" // List of extensions to be remove to determine sample name
-
 // Process : MAGeCK Count
 process mageck_count {
 
-    container "${mageck_container}"
+    container "${params.container__mageck}"
     label "mem_medium"
 
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*.txt"
@@ -19,28 +16,8 @@ process mageck_count {
         path '*.count.txt', emit: counts
         
     script:
-        """/bin/bash
-        set -Eeuo pipefail
+    template "mageck_count.sh"
 
-        # Parse the name of the sample from the name of the FASTQ file
-        SAMPLE_NAME="${fastq.name}"
-        for suffix in ${suffix_list}; do
-            SAMPLE_NAME=\$(echo \$SAMPLE_NAME | sed "s/.\$suffix\$//")
-        done
-
-        echo FASTQ file is ${fastq.name}
-        echo Sample name is \$SAMPLE_NAME
-
-        mageck count \
-            -l ${library} \
-            -n \$SAMPLE_NAME \
-            --sample-label \$SAMPLE_NAME \
-            --fastq ${fastq} \
-            --trim-5 0 \
-            --pdf-report
-
-        ls -lahtr
-        """
 }
 
 // Process : Mageck Merge
@@ -60,19 +37,13 @@ process mageck_merge {
         tuple file("counts.txt"), file("treatment_sample_names.txt"), file("control_sample_names.txt"), emit: merged
 
     script:
-        """/bin/bash
-        set -Eeuo pipefail
-
-        join_counts.py ""
-
-        ls -lahtr
-        """
+    template "mageck_merge.py"
 }
 
 // Process : MAGeCK RRA
 process mageck_rra {
 
-    container "${mageck_container}"
+    container "${params.container__mageck}"
     label "mem_medium"
     
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*.txt"
@@ -89,31 +60,14 @@ process mageck_rra {
         path "${output_prefix}.sgrna_summary.txt", emit: sgrnaSummary
         
     script:
-        """/bin/bash
-        set -Eeuo pipefail
+    template "mageck_rra.sh"
 
-        echo COUNTS file is ${counts_tsv.name}
-        echo TREATMENT file is \$(cat ${treatment_samples})
-        echo CONTROLS file is \$(cat ${control_samples})
-        echo OUTPUT prefix is ${output_prefix}
-
-        mageck test \
-            -k ${counts_tsv} \
-            -t "\$(cat ${treatment_samples})" \
-            -c "\$(cat ${control_samples})" \
-            -n "${output_prefix}" \
-            --normcounts-to-file \
-            --keep-tmp \
-            --pdf-report
-
-        ls -lahtr
-        """
 }
 
 // Process : MAGeCK MLE
 process mageck_mle {
 
-    container "${mageck_container}"
+    container "${params.container__mageck}"
     label "mem_medium" 
 
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*.txt"
@@ -131,32 +85,14 @@ process mageck_mle {
         path "${output_prefix}.sgrna_summary.txt", emit: sgrnaSummary
 
     script:
-        """/bin/bash
-        set -Eeuo pipefail
+    template "mageck_mle.sh"
 
-        echo 'Samples	baseline	treatment_control' > design.mtx
-        for i in \$(echo ${treatment} | tr ',' '\n')
-        do
-            echo \$(basename \$i | cut -d. -f1)'  1    1' >> design.mtx
-        done
-        for i in \$(echo ${control} | tr ',' '\n')
-        do
-            echo \$(basename \$i | cut -d. -f1)'  1    0' >> design.mtx
-        done
-        
-        mageck mle \
-            -k ${counts_tsv} \
-            -d 'design.mtx' \
-            -n ${output_prefix}
-            
-        ls -lahtr
-        """
 }
 
 // Process : MAGeCK Pathway
 process mageck_pathway { 
     
-    container "${mageck_container}"
+    container "${params.container__mageck}"
     label "mem_medium"
     
     publishDir "${params.output}/${prefix}/", mode: "copy", overwrite: "true", pattern: "*"
@@ -170,14 +106,6 @@ process mageck_pathway {
         val(prefix)
 
     script:
-        """/bin/bash
-        set -Eeuo pipefail
-
-        mageck pathway \
-            --gene-ranking ${counts_tsv} \
-            --gmt-file ${gmt} \
-            -n "${output_prefix}"
-
-        ls -lahtr
-        """
+    template "mageck_pathway.sh"
+    
 }
