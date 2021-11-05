@@ -15,8 +15,6 @@ echo "Running FASTQC"
 fastqc --threads ${task.cpus} --extract -o \$SAMPLE_NAME "$fastq"
 
 # Rename the FASTQC data file to contain the sample name
-tree
-
-mv \$SAMPLE_NAME/\$SAMPLE_NAME/fastqc_data.txt \$SAMPLE_NAME/\$SAMPLE_NAME.txt
+mv \$SAMPLE_NAME/\${SAMPLE_NAME}_fastqc/fastqc_data.txt \$SAMPLE_NAME/\$SAMPLE_NAME.txt
 
 echo "DONE"

@@ -41,7 +41,7 @@ process fastqc {
 process parse_fastqc {
     container "${params.container__pandas}"
     label "io_limited"
-    publishDir "${params.output}/fastqc/${fastq_txt.name.replaceAll(/.txt/, '')}/", mode: "copy", overwrite: "true"
+    publishDir "${params.output}/fastqc/${fastqc_txt.name.replaceAll(/.txt/, '')}/", mode: "copy", overwrite: "true"
     
     input:
     path fastqc_txt
