@@ -19,6 +19,7 @@ params.container__multiqc = "quay.io/biocontainers/multiqc:1.11--pyhdfd78af_0"
 params.container__cutadapt = "quay.io/biocontainers/cutadapt:3.4--py37h73a75cf_1"
 params.container__mageck = "quay.io/biocontainers/mageck:0.5.9.4--py38h8c62d01_1"
 params.container__mageckflute = "quay.io/biocontainers/bioconductor-mageckflute:1.12.0--r41hdfd78af_0"
+params.container__mageckvispr = "quay.io/biocontainers/mageck-vispr:0.5.6--py_0"
 params.container__rmd = "rocker/r-rmd:latest"
 
 // Import the modules
@@ -52,6 +53,11 @@ include {
     parse_fastqc;
     multiqc;
 } from './module.general'
+
+include {
+    mageckvispr_export as mageckvispr_export_rra;
+    mageckvispr_export as mageckvispr_export_mle;
+} from './module.mageckvispr'
 
 // Validate Input Parameters / Print Help
 def validate(params) {
@@ -166,6 +172,20 @@ workflow {
 
     // Process Mageck Flute MLE
     mageckflute_mle(mageck_mle.out.geneSummary, Channel.fromPath(params.depmap_effect), Channel.fromPath(params.depmap_samples), 'mageckflute/mle')
+
+    // Export Mageck RRA as JSON via MAGeCKVispr
+    mageckvispr_export_rra(
+        mageck_rra.out.geneSummary,
+        mageck_rra.out.normCounts,
+        "mageck/rra/vispr"
+    )
+
+    // Export Mageck RRA as JSON via MAGeCKVispr
+    mageckvispr_export_mle(
+        mageck_mle.out.geneSummary,
+        mageck_rra.out.normCounts,
+        "mageck/mle/vispr"
+    )
     
     // Process : Rmd To Pdf
     // Rmd_Pdf_Treatment(mageck_count_treatment.out.r, 'mageck/count/treatment/pdf')

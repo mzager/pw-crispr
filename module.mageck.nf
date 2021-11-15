@@ -58,6 +58,7 @@ process mageck_rra {
         tuple file("*.R"), file("*"), emit: r
         path "${output_prefix}.gene_summary.txt", emit: geneSummary
         path "${output_prefix}.sgrna_summary.txt", emit: sgrnaSummary
+        path "${output_prefix}.normalized.txt", emit: normCounts
         
     script:
     template "mageck_rra.sh"
