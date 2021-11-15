@@ -14,6 +14,7 @@ done
 mageck mle \
     -k ${counts_tsv} \
     -d 'design.mtx' \
-    -n ${output_prefix}
+    -n ${output_prefix} \
+    --threads ${task.cpus}
     
 ls -lahtr
