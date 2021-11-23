@@ -65,8 +65,6 @@ def validate(params) {
     if (params.treatment_fastq 
         && params.control_fastq 
         && params.library
-        && params.trim_5_prime
-        && params.trim_3_prime 
         && params.organism 
         && params.scale_cutoff 
         && params.gmt 
